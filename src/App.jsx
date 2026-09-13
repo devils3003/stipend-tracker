@@ -1,6 +1,58 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 
+import { useState } from 'react';
+
+// Set your private access code here
+const ACCESS_CODE = "jmcss2026"; 
+
+export default function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(
+    localStorage.getItem("app_authenticated") === "true"
+  );
+  const [inputCode, setInputCode] = useState("");
+  const [error, setError] = useState(false);
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+    if (inputCode === ACCESS_CODE) {
+      localStorage.setItem("app_authenticated", "true");
+      setIsAuthenticated(true);
+      setError(false);
+    } else {
+      setError(true);
+    }
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', fontFamily: 'sans-serif' }}>
+        <form onSubmit={handleLogin} style={{ padding: '2rem', border: '1px solid #ccc', borderRadius: '8px', textAlign: 'center' }}>
+          <h2>JMCSS Stipend Tracker</h2>
+          <p>Please enter the access code to proceed:</p>
+          <input 
+            type="password" 
+            value={inputCode} 
+            onChange={(e) => setInputCode(e.target.value)} 
+            placeholder="Enter access code"
+            style={{ padding: '8px', fontSize: '16px', marginBottom: '10px', width: '80%' }}
+          />
+          <br />
+          <button type="submit" style={{ padding: '8px 16px', fontSize: '16px', cursor: 'pointer' }}>Enter</button>
+          {error && <p style={{ color: 'red', marginTop: '10px' }}>Incorrect access code.</p>}
+        </form>
+      </div>
+    );
+  }
+
+  // Your existing Stipend Tracker UI code goes here...
+  return (
+    <div>
+      {/* Existing App JSX */}
+    </div>
+  );
+}
+
 function App() {
   const [employees, setEmployees] = useState([])
   const [stipendTypes, setStipendTypes] = useState([])
