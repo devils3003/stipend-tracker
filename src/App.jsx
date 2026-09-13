@@ -1,10 +1,7 @@
-import { useEffect, useState } from 'react'
-import { supabase } from './supabaseClient'
+import { useEffect, useState } from 'react';
+import { supabase } from './supabaseClient';
 
-import { useState } from 'react';
-
-// Set your private access code here
-const ACCESS_CODE = "jmcss2026"; 
+const ACCESS_CODE = "jmcss2026";
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(
@@ -12,6 +9,48 @@ export default function App() {
   );
   const [inputCode, setInputCode] = useState("");
   const [error, setError] = useState(false);
+
+  // App Main State
+  const [employees, setEmployees] = useState([]);
+  const [stipendTypes, setStipendTypes] = useState([]);
+  
+  // Entry Form State
+  const [selectedStaffId, setSelectedStaffId] = useState('');
+  const [selectedStipendId, setSelectedStipendId] = useState('');
+  const [quantity, setQuantity] = useState(1);
+  const [customRate, setCustomRate] = useState('');
+  const [effectiveDate, setEffectiveDate] = useState('');
+  
+  // Records & Data State
+  const [stipendsList, setStipendsList] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Reporting / Filter State
+  const [reportStaffId, setReportStaffId] = useState('ALL');
+  const [reportStipendTypeId, setReportStipendTypeId] = useState('ALL');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchData();
+    }
+  }, [isAuthenticated]);
+
+  async function fetchData() {
+    setLoading(true);
+    const { data: empData, error: empErr } = await supabase.from('Employee').select('*');
+    const { data: typeData } = await supabase.from('stipend_types').select('*');
+    const { data: stipendData } = await supabase
+      .from('employee_stipends')
+      .select('*, Employee("First Name", "Last Name"), stipend_types(*)');
+
+    if (empErr) console.error('Employee Fetch Error:', empErr);
+    if (empData) setEmployees(empData);
+    if (typeData) setStipendTypes(typeData);
+    if (stipendData) setStipendsList(stipendData);
+    setLoading(false);
+  }
 
   const handleLogin = (e) => {
     e.preventDefault();
@@ -24,78 +63,9 @@ export default function App() {
     }
   };
 
-  if (!isAuthenticated) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', fontFamily: 'sans-serif' }}>
-        <form onSubmit={handleLogin} style={{ padding: '2rem', border: '1px solid #ccc', borderRadius: '8px', textAlign: 'center' }}>
-          <h2>JMCSS Stipend Tracker</h2>
-          <p>Please enter the access code to proceed:</p>
-          <input 
-            type="password" 
-            value={inputCode} 
-            onChange={(e) => setInputCode(e.target.value)} 
-            placeholder="Enter access code"
-            style={{ padding: '8px', fontSize: '16px', marginBottom: '10px', width: '80%' }}
-          />
-          <br />
-          <button type="submit" style={{ padding: '8px 16px', fontSize: '16px', cursor: 'pointer' }}>Enter</button>
-          {error && <p style={{ color: 'red', marginTop: '10px' }}>Incorrect access code.</p>}
-        </form>
-      </div>
-    );
-  }
-
-  // Your existing Stipend Tracker UI code goes here...
-  return (
-    <div>
-      {/* Existing App JSX */}
-    </div>
-  );
-}
-
-function App() {
-  const [employees, setEmployees] = useState([])
-  const [stipendTypes, setStipendTypes] = useState([])
-  
-  // Entry Form State
-  const [selectedStaffId, setSelectedStaffId] = useState('')
-  const [selectedStipendId, setSelectedStipendId] = useState('')
-  const [quantity, setQuantity] = useState(1)
-  const [customRate, setCustomRate] = useState('')
-  const [effectiveDate, setEffectiveDate] = useState('')
-  
-  // Records & Data State
-  const [stipendsList, setStipendsList] = useState([])
-  const [loading, setLoading] = useState(true)
-
-  // Reporting / Filter State
-  const [reportStaffId, setReportStaffId] = useState('ALL')
-  const [reportStipendTypeId, setReportStipendTypeId] = useState('ALL')
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState('')
-
-  useEffect(() => {
-    fetchData()
-  }, [])
-
-  async function fetchData() {
-    setLoading(true)
-    const { data: empData, error: empErr } = await supabase.from('Employee').select('*')
-    const { data: typeData } = await supabase.from('stipend_types').select('*')
-    const { data: stipendData } = await supabase
-      .from('employee_stipends')
-      .select('*, Employee("First Name", "Last Name"), stipend_types(*)')
-
-    if (empErr) console.error('Employee Fetch Error:', empErr)
-    if (empData) setEmployees(empData)
-    if (typeData) setStipendTypes(typeData)
-    if (stipendData) setStipendsList(stipendData)
-    setLoading(false)
-  }
-
   async function handleSubmit(e) {
-    e.preventDefault()
-    if (!selectedStaffId || !selectedStipendId || !effectiveDate) return
+    e.preventDefault();
+    if (!selectedStaffId || !selectedStipendId || !effectiveDate) return;
 
     const { error } = await supabase.from('employee_stipends').insert([
       {
@@ -105,53 +75,64 @@ function App() {
         custom_rate: customRate ? parseFloat(customRate) : null,
         effective_date: effectiveDate
       }
-    ])
+    ]);
 
     if (!error) {
-      setQuantity(1)
-      setCustomRate('')
-      setEffectiveDate('')
-      fetchData()
+      setQuantity(1);
+      setCustomRate('');
+      setEffectiveDate('');
+      fetchData();
     } else {
-      alert(error.message)
+      alert(error.message);
     }
   }
 
-  // Helper function to resolve rate per item ($18 default)
   function getEffectiveRate(item) {
     if (item.custom_rate !== null && item.custom_rate !== undefined && item.custom_rate !== '') {
-      return parseFloat(item.custom_rate)
+      return parseFloat(item.custom_rate);
     }
-    return item.stipend_types?.rate || item.stipend_types?.amount || 18
+    return item.stipend_types?.rate || item.stipend_types?.amount || 18;
   }
 
-  // Filter stipends based on report controls
+  // Gate Check for Password Access Code
+  if (!isAuthenticated) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', fontFamily: 'sans-serif' }}>
+        <form onSubmit={handleLogin} style={{ padding: '2rem', border: '1px solid #ccc', borderRadius: '8px', textAlign: 'center', maxWidth: '400px', width: '100%' }}>
+          <h2>JMCSS Stipend Tracker</h2>
+          <p style={{ color: '#555' }}>Please enter the access code to proceed:</p>
+          <input 
+            type="password" 
+            value={inputCode} 
+            onChange={(e) => setInputCode(e.target.value)} 
+            placeholder="Enter access code"
+            style={{ padding: '8px', fontSize: '16px', marginBottom: '10px', width: '80%', borderRadius: '4px', border: '1px solid #ccc' }}
+          />
+          <br />
+          <button type="submit" style={{ padding: '8px 16px', fontSize: '16px', cursor: 'pointer', backgroundColor: '#0070f3', color: '#fff', border: 'none', borderRadius: '4px' }}>Enter</button>
+          {error && <p style={{ color: 'red', marginTop: '10px' }}>Incorrect access code.</p>}
+        </form>
+      </div>
+    );
+  }
+
+  if (loading) return <div style={{ padding: '2rem', fontFamily: 'sans-serif' }}>Loading database...</div>;
+
   const filteredStipends = stipendsList.filter((item) => {
-    if (reportStaffId !== 'ALL' && String(item.staff_id) !== String(reportStaffId)) {
-      return false
-    }
-    if (reportStipendTypeId !== 'ALL' && String(item.stipend_type_id) !== String(reportStipendTypeId)) {
-      return false
-    }
-    if (startDate && item.effective_date && item.effective_date < startDate) {
-      return false
-    }
-    if (endDate && item.effective_date && item.effective_date > endDate) {
-      return false
-    }
-    return true
-  })
+    if (reportStaffId !== 'ALL' && String(item.staff_id) !== String(reportStaffId)) return false;
+    if (reportStipendTypeId !== 'ALL' && String(item.stipend_type_id) !== String(reportStipendTypeId)) return false;
+    if (startDate && item.effective_date && item.effective_date < startDate) return false;
+    if (endDate && item.effective_date && item.effective_date > endDate) return false;
+    return true;
+  });
 
-  // Aggregate Metrics
-  const totalEntries = filteredStipends.length
-  const totalStipendQuantity = filteredStipends.reduce((sum, item) => sum + (item.quantity || 0), 0)
+  const totalEntries = filteredStipends.length;
+  const totalStipendQuantity = filteredStipends.reduce((sum, item) => sum + (item.quantity || 0), 0);
   const totalDollarAmount = filteredStipends.reduce((sum, item) => {
-    const rate = getEffectiveRate(item)
-    const qty = item.quantity || 0
-    return sum + (qty * rate)
-  }, 0)
-
-  if (loading) return <div style={{ padding: '2rem' }}>Loading database...</div>
+    const rate = getEffectiveRate(item);
+    const qty = item.quantity || 0;
+    return sum + (qty * rate);
+  }, 0);
 
   return (
     <div style={{ padding: '2rem', fontFamily: 'sans-serif', maxWidth: '1000px', margin: '0 auto' }}>
@@ -327,8 +308,8 @@ function App() {
             </tr>
           ) : (
             filteredStipends.map((item) => {
-              const rate = getEffectiveRate(item)
-              const lineTotal = (item.quantity || 0) * rate
+              const rate = getEffectiveRate(item);
+              const lineTotal = (item.quantity || 0) * rate;
               return (
                 <tr key={item.id} style={{ borderBottom: '1px solid #eee' }}>
                   <td style={{ padding: '0.75rem' }}>{item.effective_date || 'N/A'}</td>
@@ -347,5 +328,5 @@ function App() {
         </tbody>
       </table>
     </div>
-  )
+  );
 }
