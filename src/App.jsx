@@ -248,14 +248,14 @@ export default function App() {
                   />
                 </div>
 
-               <div>
+              <div>
   <input
     type="number"
     step="0.01"
-    // DYNAMIC PLACEHOLDER: Checks the database list on the fly to show the rate
+    // DYNAMIC PLACEHOLDER: Changed from === to == for data types matching (string vs int4)
     placeholder={
       row.stipendTypeId 
-        ? `Default: $${stipendTypes.find(t => String(t.id) === String(row.stipendTypeId))?.default_rate || '18'}`
+        ? `Default: $${stipendTypes.find(t => t.id == row.stipendTypeId)?.default_rate || '18'}`
         : "Default: $18"
     }
     value={row.customRate}
@@ -263,6 +263,7 @@ export default function App() {
     style={{ padding: '0.45rem', width: '120px' }}
   />
 </div>
+
 
 {stipendRows.length > 1 && (
   <button 
