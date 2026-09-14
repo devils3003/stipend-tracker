@@ -19,10 +19,13 @@ jobs:
           sudo apt-get install -y postgresql-client
 
       - name: Dump Database Schema and Data
+        # This injects your secret string right into the step environment
+        env:
+          DB_CONNECTION_STRING: ${{ secrets.SUPABASE_DB_URL }}
         run: |
           mkdir -p backups
-          # Uses the IPv4 Session Pooler connection string securely
-          pg_dump "${{ secrets.SUPABASE_DB_URL }}" -F p -f backups/backup-$(date +%Y-%m-%d).sql
+          # Uses the injected environment variable
+          pg_dump "$DB_CONNECTION_STRING" -F p -f backups/backup-$(date +%Y-%m-%d).sql
         
       - name: Commit and Push Backup
         run: |
