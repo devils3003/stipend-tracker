@@ -254,10 +254,11 @@ export default function App() {
     step="0.01"
     // DYNAMIC PLACEHOLDER: Changed from === to == for data types matching (string vs int4)
     placeholder={
-      row.stipendTypeId 
-        ? `Default: $${stipendTypes.find(t => t.id == row.stipendTypeId)?.default_rate || '18'}`
-        : "Default: $18"
-    }
+  row.stipendTypeId 
+    ? `Default: $${stipendTypes.find(t => t.id == row.stipendTypeId)?.default_rate || '18'}`
+    : "Default: $18"
+}
+
     value={row.customRate}
     onChange={(e) => handleRowChange(index, 'customRate', e.target.value)}
     style={{ padding: '0.45rem', width: '120px' }}
