@@ -14,13 +14,12 @@ export default function App() {
   const [employees, setEmployees] = useState([]);
   const [stipendTypes, setStipendTypes] = useState([]);
   
-    // Entry Form State (Modified for Multiple Entries)
+  // Entry Form State (Configured for Multiple Dynamic Rows)
   const [selectedStaffId, setSelectedStaffId] = useState('');
   const [effectiveDate, setEffectiveDate] = useState('');
   const [stipendRows, setStipendRows] = useState([
     { stipendTypeId: '', quantity: 1, customRate: '' }
   ]);
-
   
   // Records & Data State
   const [stipendsList, setStipendsList] = useState([]);
@@ -64,9 +63,13 @@ export default function App() {
     }
   };
 
-    const handleRowChange = (index, field, value) => {
+  // Helper function to manage dynamic row modifications immutably
+  const handleRowChange = (index, field, value) => {
     const updatedRows = [...stipendRows];
-    updatedRows[index][field] = value;
+    updatedRows[index] = { 
+      ...updatedRows[index], 
+      [field]: value 
+    };
     setStipendRows(updatedRows);
   };
 
@@ -75,47 +78,37 @@ export default function App() {
   };
 
   const removeStipendRow = (index) => {
-    if (stipendRows.length === 1) return; // Keep at least one row
+    if (stipendRows.length === 1) return; // Keep at least one row active
     const updatedRows = stipendRows.filter((_, i) => i !== index);
     setStipendRows(updatedRows);
   };
 
-     async function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     if (!selectedStaffId || !effectiveDate) return;
 
-    // Filter out rows that don't have a stipend type selected
+    // Filter out rows that do not have a stipend type selected
     const validRows = stipendRows.filter(row => row.stipendTypeId !== '');
     if (validRows.length === 0) {
       alert("Please select at least one stipend type.");
       return;
     }
 
-    // Format rows for bulk Supabase insertion with explicit default rates
+    // Format rows for bulk Supabase insertion with accurate rates
     const insertData = validRows.map(row => {
-      // Look up type by stripping out type constraints (.trim() and matching loosely)
-      const selectedType = stipendTypes.find(t => String(t.id).trim() === String(row.stipendTypeId).trim());
-      
-      // Fallback chain: selected database row -> fallback default number 18
-      const defaultRate = selectedType ? (selectedType.default_rate || selectedType.Rate || 18) : 18;
-
-      // Debugging tools: Open your browser inspect terminal to see these prints!
-      console.log("Selected Type Found:", selectedType);
-      console.log("Resolved Default Rate:", defaultRate);
+      const selectedType = stipendTypes.find(t => String(t.id) === String(row.stipendTypeId));
+      const defaultRate = selectedType?.default_rate || 18;
 
       return {
         staff_id: selectedStaffId,
-        stipend_type_id: parseInt(row.stipendTypeId) || row.stipendTypeId, // handles both numeric and string UUID ids
+        stipend_type_id: parseInt(row.stipendTypeId) || row.stipendTypeId,
         quantity: parseInt(row.quantity) || 1,
-        // If customRate is blank text, explicitly pass the numeric default rate
-        custom_rate: row.customRate !== '' && row.customRate !== undefined && row.customRate !== null
+        custom_rate: row.customRate !== '' && row.customRate !== null && row.customRate !== undefined
           ? parseFloat(row.customRate) 
           : parseFloat(defaultRate),
         effective_date: effectiveDate
       };
     });
-
-    console.log("Final payload passing to Supabase:", insertData);
 
     const { error } = await supabase.from('employee_stipends').insert(insertData);
 
@@ -124,17 +117,14 @@ export default function App() {
       setEffectiveDate('');
       fetchData();
     } else {
-      console.error("Supabase Error Context:", error);
       alert(error.message);
     }
   }
 
-
-    function getEffectiveRate(item) {
+  function getEffectiveRate(item) {
     if (item.custom_rate !== null && item.custom_rate !== undefined && item.custom_rate !== '') {
       return parseFloat(item.custom_rate);
     }
-    // Align with your exact database column: default_rate
     return item.stipend_types?.default_rate || 18;
   }
 
@@ -182,7 +172,7 @@ export default function App() {
     <div style={{ padding: '2rem', fontFamily: 'sans-serif', maxWidth: '1000px', margin: '0 auto' }}>
       <h1>Employee Stipend Tracker</h1>
 
-            {/* Entry Form */}
+      {/* Entry Form */}
       <div style={{ backgroundColor: '#f9f9f9', padding: '1.5rem', borderRadius: '8px', marginBottom: '2rem' }}>
         <h2 style={{ marginTop: 0 }}>Log Stipends for Employee</h2>
         <form onSubmit={handleSubmit}>
@@ -218,7 +208,7 @@ export default function App() {
             <label style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>Assign Stipends:</label>
             
             {stipendRows.map((row, index) => (
-              <div key={index} style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              <div key={`${index}-${row.stipendTypeId}`} style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
                 
                 <div style={{ flex: '1', minWidth: '200px' }}>
                   <select 
@@ -248,34 +238,33 @@ export default function App() {
                   />
                 </div>
 
-              <div>
-  <input
-    type="number"
-    step="0.01"
-    // DYNAMIC PLACEHOLDER: Changed from === to == for data types matching (string vs int4)
-    placeholder={
-  row.stipendTypeId 
-    ? `Default: $${stipendTypes.find(t => t.id == row.stipendTypeId)?.default_rate || '18'}`
-    : "Default: $18"
-}
+                <div>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder={
+                      row.stipendTypeId 
+                        ? `Default: $${stipendTypes.find(t => t.id == row.stipendTypeId)?.default_rate || '18'}`
+                        : "Default: $18"
+                    }
+                    value={row.customRate}
+                    onChange={(e) => handleRowChange(index, 'customRate', e.target.value)}
+                    style={{ padding: '0.45rem', width: '120px' }}
+                  />
+                </div>
 
-    value={row.customRate}
-    onChange={(e) => handleRowChange(index, 'customRate', e.target.value)}
-    style={{ padding: '0.45rem', width: '120px' }}
-  />
-</div>
-
-
-{stipendRows.length > 1 && (
-  <button 
-    type="button" 
-    onClick={() => removeStipendRow(index)} 
-    style={{ padding: '0.45rem 0.75rem', cursor: 'pointer', backgroundColor: '#dc3545', color: '#fff', border: 'none', borderRadius: '4px' }}
-  >
-    ✕
-  </button>
-)}
-
+                {stipendRows.length > 1 && (
+                  <button 
+                    type="button" 
+                    onClick={() => removeStipendRow(index)} 
+                    style={{ padding: '0.45rem 0.75rem', cursor: 'pointer', backgroundColor: '#dc3545', color: '#fff', border: 'none', borderRadius: '4px' }}
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
 
           {/* Form Action Controls */}
           <div style={{ display: 'flex', gap: '1rem' }}>
@@ -297,124 +286,87 @@ export default function App() {
         </form>
       </div>
 
-
-      {/* Report Controls & Summaries */}
-      <div style={{ backgroundColor: '#eef2f5', padding: '1.5rem', borderRadius: '8px', marginBottom: '2rem' }}>
-        <h2 style={{ marginTop: 0 }}>Stipend Reports & Filters</h2>
-        
-        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: '1.5rem' }}>
-          <div>
-            <label style={{ fontSize: '0.85rem', display: 'block', marginBottom: '4px' }}>Filter by Employee:</label>
-            <select value={reportStaffId} onChange={(e) => setReportStaffId(e.target.value)} style={{ padding: '0.5rem' }}>
-              <option value="ALL">All Employees</option>
-              {employees.map((emp) => (
-                <option key={emp['Staff ID']} value={emp['Staff ID']}>
-                  {emp['First Name']} {emp['Last Name']} ({emp['Staff ID']})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label style={{ fontSize: '0.85rem', display: 'block', marginBottom: '4px' }}>Filter by Stipend Type:</label>
-            <select value={reportStipendTypeId} onChange={(e) => setReportStipendTypeId(e.target.value)} style={{ padding: '0.5rem' }}>
-              <option value="ALL">All Stipend Types</option>
-              {stipendTypes.map((type) => (
-                <option key={type.id} value={type.id}>
-                  {type.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label style={{ fontSize: '0.85rem', display: 'block', marginBottom: '4px' }}>Start Date:</label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              style={{ padding: '0.45rem' }}
-            />
-          </div>
-
-          <div>
-            <label style={{ fontSize: '0.85rem', display: 'block', marginBottom: '4px' }}>End Date:</label>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              style={{ padding: '0.45rem' }}
-            />
-          </div>
-
-          <button
-            onClick={() => { setReportStaffId('ALL'); setReportStipendTypeId('ALL'); setStartDate(''); setEndDate(''); }}
-            style={{ padding: '0.55rem 1rem', cursor: 'pointer', backgroundColor: '#666', color: '#fff', border: 'none', borderRadius: '4px' }}
-          >
-            Clear Filters
-          </button>
+      {/* Reporting Summary Cards and Filtering */}
+      <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
+        <div style={{ border: '1px solid #ccc', padding: '1rem', borderRadius: '8px', flex: 1, backgroundColor: '#fff' }}>
+          <h3 style={{ margin: '0 0 0.5rem 0', color: '#555' }}>Total Entries</h3>
+          <p style={{ fontSize: '1.5rem', margin: 0, fontWeight: 'bold' }}>{totalEntries}</p>
         </div>
-
-        {/* Aggregate Summary Cards */}
-        <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
-          <div style={{ backgroundColor: '#fff', padding: '1rem 1.5rem', borderRadius: '6px', border: '1px solid #ccc', minWidth: '150px' }}>
-            <span style={{ fontSize: '0.85rem', color: '#555' }}>Total Logged Entries</span>
-            <div style={{ fontSize: '1.5rem', fontWeight: 'bold', marginTop: '4px' }}>{totalEntries}</div>
-          </div>
-
-          <div style={{ backgroundColor: '#fff', padding: '1rem 1.5rem', borderRadius: '6px', border: '1px solid #ccc', minWidth: '150px' }}>
-            <span style={{ fontSize: '0.85rem', color: '#555' }}>Total Stipend Count (Qty)</span>
-            <div style={{ fontSize: '1.5rem', fontWeight: 'bold', marginTop: '4px', color: '#0070f3' }}>{totalStipendQuantity}</div>
-          </div>
-
-          <div style={{ backgroundColor: '#fff', padding: '1rem 1.5rem', borderRadius: '6px', border: '1px solid #ccc', minWidth: '150px' }}>
-            <span style={{ fontSize: '0.85rem', color: '#555' }}>Total Payout Amount</span>
-            <div style={{ fontSize: '1.5rem', fontWeight: 'bold', marginTop: '4px', color: '#2e7d32' }}>
-              ${totalDollarAmount.toFixed(2)}
-            </div>
-          </div>
+        <div style={{ border: '1px solid #ccc', padding: '1rem', borderRadius: '8px', flex: 1, backgroundColor: '#fff' }}>
+          <h3 style={{ margin: '0 0 0.5rem 0', color: '#555' }}>Total Quantity</h3>
+          <p style={{ fontSize: '1.5rem', margin: 0, fontWeight: 'bold' }}>{totalStipendQuantity}</p>
+        </div>
+        <div style={{ border: '1px solid #ccc', padding: '1rem', borderRadius: '8px', flex: 1, backgroundColor: '#fff' }}>
+          <h3 style={{ margin: '0 0 0.5rem 0', color: '#555' }}>Total Investment</h3>
+          <p style={{ fontSize: '1.5rem', margin: 0, fontWeight: 'bold', color: '#2e7d32' }}>${totalDollarAmount.toFixed(2)}</p>
         </div>
       </div>
 
-      {/* Stipend Records Table */}
-      <h2>Report Details ({filteredStipends.length} Records)</h2>
+      {/* Reporting Filters Layout */}
+      <div style={{ backgroundColor: '#f5f5f5', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <div>
+          <label style={{ fontSize: '0.8rem', display: 'block', marginBottom: '4px' }}>Filter Staff:</label>
+          <select value={reportStaffId} onChange={(e) => setReportStaffId(e.target.value)} style={{ padding: '0.4rem' }}>
+            <option value="ALL">All Staff</option>
+            {employees.map(emp => (
+              <option key={emp['Staff ID']} value={emp['Staff ID']}>{emp['First Name']} {emp['Last Name']}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label style={{ fontSize: '0.8rem', display: 'block', marginBottom: '4px' }}>Filter Stipend Type:</label>
+          <select value={reportStipendTypeId} onChange={(e) => setReportStipendTypeId(e.target.value)} style={{ padding: '0.4rem' }}>
+            <option value="ALL">All Types</option>
+            {stipendTypes.map(t => (
+              <option key={t.id} value={t.id}>{t.name}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label style={{ fontSize: '0.8rem', display: 'block', marginBottom: '4px' }}>Start Date:</label>
+          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={{ padding: '0.35rem' }} />
+        </div>
+        <div>
+          <label style={{ fontSize: '0.8rem', display: 'block', marginBottom: '4px' }}>End Date:</label>
+          <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} style={{ padding: '0.35rem' }} />
+        </div>
+      </div>
+
+      {/* Report Records Table */}
       <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
         <thead>
-          <tr style={{ borderBottom: '2px solid #ccc', backgroundColor: '#fafafa' }}>
-            <th style={{ padding: '0.75rem' }}>Effective Date</th>
+          <tr style={{ backgroundColor: '#eaeaea', borderBottom: '2px solid #ccc' }}>
             <th style={{ padding: '0.75rem' }}>Staff ID</th>
             <th style={{ padding: '0.75rem' }}>Employee</th>
-            <th style={{ padding: '0.75rem' }}>Stipend Type</th>
+            <th style={{ padding: '0.75rem' }}>Stipend Name</th>
+            <th style={{ padding: '0.75rem' }}>Date</th>
             <th style={{ padding: '0.75rem' }}>Qty</th>
             <th style={{ padding: '0.75rem' }}>Rate</th>
-            <th style={{ padding: '0.75rem' }}>Total Amount</th>
+            <th style={{ padding: '0.75rem' }}>Total</th>
           </tr>
         </thead>
         <tbody>
-          {filteredStipends.length === 0 ? (
+          {filteredStipends.map((item) => {
+            const rate = getEffectiveRate(item);
+            const quantity = item.quantity || 0;
+            return (
+              <tr key={item.id} style={{ borderBottom: '1px solid #eee' }}>
+                <td style={{ padding: '0.75rem' }}>{item.staff_id}</td>
+                <td style={{ padding: '0.75rem' }}>
+                  {item.Employee ? `${item.Employee['First Name']} ${item.Employee['Last Name']}` : 'Unknown'}
+                </td>
+                <td style={{ padding: '0.75rem' }}>{item.stipend_types?.name || 'Unknown'}</td>
+                <td style={{ padding: '0.75rem' }}>{item.effective_date}</td>
+                <td style={{ padding: '0.75rem' }}>{quantity}</td>
+                <td style={{ padding: '0.75rem' }}>${rate.toFixed(2)}</td>
+                <td style={{ padding: '0.75rem', fontWeight: 'bold' }}>${(quantity * rate).toFixed(2)}</td>
+              </tr>
+            );
+          })}
+          {filteredStipends.length === 0 && (
             <tr>
-              <td colSpan="7" style={{ padding: '1rem', textAlign: 'center', color: '#777' }}>
-                No records match the selected report criteria.
-              </td>
+              <td colSpan="7" style={{ padding: '2rem', textAlign: 'center', color: '#666' }}>No stipends match the current filtering parameters.</td>
             </tr>
-          ) : (
-            filteredStipends.map((item) => {
-              const rate = getEffectiveRate(item);
-              const lineTotal = (item.quantity || 0) * rate;
-              return (
-                <tr key={item.id} style={{ borderBottom: '1px solid #eee' }}>
-                  <td style={{ padding: '0.75rem' }}>{item.effective_date || 'N/A'}</td>
-                  <td style={{ padding: '0.75rem' }}>{item.staff_id}</td>
-                  <td style={{ padding: '0.75rem' }}>
-                    {item.Employee?.['First Name']} {item.Employee?.['Last Name']}
-                  </td>
-                  <td style={{ padding: '0.75rem' }}>{item.stipend_types?.name}</td>
-                  <td style={{ padding: '0.75rem' }}>{item.quantity}</td>
-                  <td style={{ padding: '0.75rem' }}>${rate.toFixed(2)}</td>
-                  <td style={{ padding: '0.75rem', fontWeight: '500' }}>${lineTotal.toFixed(2)}</td>
-                </tr>
-              )
-            })
           )}
         </tbody>
       </table>
