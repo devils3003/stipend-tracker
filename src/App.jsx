@@ -14,12 +14,13 @@ export default function App() {
   const [employees, setEmployees] = useState([]);
   const [stipendTypes, setStipendTypes] = useState([]);
   
-  // Entry Form State
+    // Entry Form State (Modified for Multiple Entries)
   const [selectedStaffId, setSelectedStaffId] = useState('');
-  const [selectedStipendId, setSelectedStipendId] = useState('');
-  const [quantity, setQuantity] = useState(1);
-  const [customRate, setCustomRate] = useState('');
   const [effectiveDate, setEffectiveDate] = useState('');
+  const [stipendRows, setStipendRows] = useState([
+    { stipendTypeId: '', quantity: 1, customRate: '' }
+  ]);
+
   
   // Records & Data State
   const [stipendsList, setStipendsList] = useState([]);
@@ -63,29 +64,54 @@ export default function App() {
     }
   };
 
-  async function handleSubmit(e) {
-    e.preventDefault();
-    if (!selectedStaffId || !selectedStipendId || !effectiveDate) return;
+    const handleRowChange = (index, field, value) => {
+    const updatedRows = [...stipendRows];
+    updatedRows[index][field] = value;
+    setStipendRows(updatedRows);
+  };
 
-    const { error } = await supabase.from('employee_stipends').insert([
-      {
-        staff_id: selectedStaffId,
-        stipend_type_id: selectedStipendId,
-        quantity: parseInt(quantity) || 1,
-        custom_rate: customRate ? parseFloat(customRate) : null,
-        effective_date: effectiveDate
-      }
-    ]);
+  const addStipendRow = () => {
+    setStipendRows([...stipendRows, { stipendTypeId: '', quantity: 1, customRate: '' }]);
+  };
+
+  const removeStipendRow = (index) => {
+    if (stipendRows.length === 1) return; // Keep at least one row
+    const updatedRows = stipendRows.filter((_, i) => i !== index);
+    setStipendRows(updatedRows);
+  };
+
+    async function handleSubmit(e) {
+    e.preventDefault();
+    if (!selectedStaffId || !effectiveDate) return;
+
+    // Filter out rows that don't have a stipend type selected
+    const validRows = stipendRows.filter(row => row.stipendTypeId !== '');
+    if (validRows.length === 0) {
+      alert("Please select at least one stipend type.");
+      return;
+    }
+
+    // Format rows for bulk Supabase insertion
+    const insertData = validRows.map(row => ({
+      staff_id: selectedStaffId,
+      stipend_type_id: row.stipendTypeId,
+      quantity: parseInt(row.quantity) || 1,
+      custom_rate: row.customRate ? parseFloat(row.customRate) : null,
+      effective_date: effectiveDate
+    }));
+
+    const { error } = await supabase.from('employee_stipends').insert(insertData);
 
     if (!error) {
-      setQuantity(1);
-      setCustomRate('');
+      // Reset form to defaults
+      setStipendRows([{ stipendTypeId: '', quantity: 1, customRate: '' }]);
       setEffectiveDate('');
       fetchData();
     } else {
       alert(error.message);
     }
   }
+
 
   function getEffectiveRate(item) {
     if (item.custom_rate !== null && item.custom_rate !== undefined && item.custom_rate !== '') {
@@ -138,74 +164,116 @@ export default function App() {
     <div style={{ padding: '2rem', fontFamily: 'sans-serif', maxWidth: '1000px', margin: '0 auto' }}>
       <h1>Employee Stipend Tracker</h1>
 
-      {/* Entry Form */}
+            {/* Entry Form */}
       <div style={{ backgroundColor: '#f9f9f9', padding: '1.5rem', borderRadius: '8px', marginBottom: '2rem' }}>
-        <h2 style={{ marginTop: 0 }}>Log New Stipend</h2>
-        <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-          <div>
-            <label style={{ fontSize: '0.85rem', display: 'block', marginBottom: '4px' }}>Employee:</label>
-            <select value={selectedStaffId} onChange={(e) => setSelectedStaffId(e.target.value)} required style={{ padding: '0.5rem' }}>
-              <option value="">Select Employee</option>
-              {employees.map((emp) => (
-                <option key={emp['Staff ID']} value={emp['Staff ID']}>
-                  {emp['First Name']} {emp['Last Name']} ({emp['Staff ID']})
-                </option>
-              ))}
-            </select>
+        <h2 style={{ marginTop: 0 }}>Log Stipends for Employee</h2>
+        <form onSubmit={handleSubmit}>
+          
+          {/* Employee & Date Selector Row */}
+          <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+            <div>
+              <label style={{ fontSize: '0.85rem', display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>Employee Name:</label>
+              <select value={selectedStaffId} onChange={(e) => setSelectedStaffId(e.target.value)} required style={{ padding: '0.5rem', minWidth: '250px' }}>
+                <option value="">Select Employee</option>
+                {employees.map((emp) => (
+                  <option key={emp['Staff ID']} value={emp['Staff ID']}>
+                    {emp['First Name']} {emp['Last Name']} ({emp['Staff ID']})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label style={{ fontSize: '0.85rem', display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>Effective Date:</label>
+              <input
+                type="date"
+                value={effectiveDate}
+                onChange={(e) => setEffectiveDate(e.target.value)}
+                required
+                style={{ padding: '0.45rem' }}
+              />
+            </div>
           </div>
 
-          <div>
-            <label style={{ fontSize: '0.85rem', display: 'block', marginBottom: '4px' }}>Stipend Type:</label>
-            <select value={selectedStipendId} onChange={(e) => setSelectedStipendId(e.target.value)} required style={{ padding: '0.5rem' }}>
-              <option value="">Select Stipend Type</option>
-              {stipendTypes.map((type) => (
-                <option key={type.id} value={type.id}>
-                  {type.name}
-                </option>
-              ))}
-            </select>
+          {/* Dynamic Stipend Sub-Rows */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem' }}>
+            <label style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>Assign Stipends:</label>
+            
+            {stipendRows.map((row, index) => (
+              <div key={index} style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                
+                <div style={{ flex: '1', minWidth: '200px' }}>
+                  <select 
+                    value={row.stipendTypeId} 
+                    onChange={(e) => handleRowChange(index, 'stipendTypeId', e.target.value)} 
+                    required 
+                    style={{ padding: '0.5rem', width: '100%' }}
+                  >
+                    <option value="">Select Stipend Type</option>
+                    {stipendTypes.map((type) => (
+                      <option key={type.id} value={type.id}>
+                        {type.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <input
+                    type="number"
+                    min="1"
+                    placeholder="Qty"
+                    value={row.quantity}
+                    onChange={(e) => handleRowChange(index, 'quantity', e.target.value)}
+                    required
+                    style={{ padding: '0.45rem', width: '60px' }}
+                  />
+                </div>
+
+                <div>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="Custom Rate ($)"
+                    value={row.customRate}
+                    onChange={(e) => handleRowChange(index, 'customRate', e.target.value)}
+                    style={{ padding: '0.45rem', width: '120px' }}
+                  />
+                </div>
+
+                {stipendRows.length > 1 && (
+                  <button 
+                    type="button" 
+                    onClick={() => removeStipendRow(index)} 
+                    style={{ padding: '0.45rem 0.75rem', cursor: 'pointer', backgroundColor: '#dc3545', color: '#fff', border: 'none', borderRadius: '4px' }}
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            ))}
           </div>
 
-          <div>
-            <label style={{ fontSize: '0.85rem', display: 'block', marginBottom: '4px' }}>Qty:</label>
-            <input
-              type="number"
-              min="1"
-              value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
-              required
-              style={{ padding: '0.45rem', width: '60px' }}
-            />
+          {/* Form Action Controls */}
+          <div style={{ display: 'flex', gap: '1rem' }}>
+            <button 
+              type="button" 
+              onClick={addStipendRow} 
+              style={{ padding: '0.55rem 1rem', cursor: 'pointer', backgroundColor: '#6c757d', color: '#fff', border: 'none', borderRadius: '4px' }}
+            >
+              + Add Another Stipend
+            </button>
+            
+            <button 
+              type="submit" 
+              style={{ padding: '0.55rem 1rem', cursor: 'pointer', backgroundColor: '#0070f3', color: '#fff', border: 'none', borderRadius: '4px', marginLeft: 'auto' }}
+            >
+              Save All Stipends
+            </button>
           </div>
-
-          <div>
-            <label style={{ fontSize: '0.85rem', display: 'block', marginBottom: '4px' }}>Custom Rate ($):</label>
-            <input
-              type="number"
-              step="0.01"
-              placeholder="Default: $18"
-              value={customRate}
-              onChange={(e) => setCustomRate(e.target.value)}
-              style={{ padding: '0.45rem', width: '110px' }}
-            />
-          </div>
-
-          <div>
-            <label style={{ fontSize: '0.85rem', display: 'block', marginBottom: '4px' }}>Effective Date:</label>
-            <input
-              type="date"
-              value={effectiveDate}
-              onChange={(e) => setEffectiveDate(e.target.value)}
-              required
-              style={{ padding: '0.45rem' }}
-            />
-          </div>
-
-          <button type="submit" style={{ padding: '0.55rem 1rem', cursor: 'pointer', backgroundColor: '#0070f3', color: '#fff', border: 'none', borderRadius: '4px' }}>
-            Add Stipend
-          </button>
         </form>
       </div>
+
 
       {/* Report Controls & Summaries */}
       <div style={{ backgroundColor: '#eef2f5', padding: '1.5rem', borderRadius: '8px', marginBottom: '2rem' }}>
