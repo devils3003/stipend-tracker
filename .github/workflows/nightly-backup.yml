@@ -15,12 +15,9 @@ jobs:
 
       - name: Install PostgreSQL Client 17
         run: |
-          # Add the official PostgreSQL repository to get version 17 tools
           sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
           wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
           sudo apt-get update
-          
-          # Explicitly install the version 17 client tools
           sudo apt-get install -y postgresql-client-17
 
       - name: Dump Database Schema and Data
@@ -28,8 +25,8 @@ jobs:
           DB_CONNECTION_STRING: ${{ secrets.SUPABASE_DB_URL }}
         run: |
           mkdir -p backups
-          # Uses the updated v17 pg_dump tool
-          pg_dump "$DB_CONNECTION_STRING" -F p -f backups/backup-$(date +%Y-%m-%d).sql
+          # Bypassing shortcuts by targeting the explicit v17 binary file
+          /usr/lib/postgresql/17/bin/pg_dump "$DB_CONNECTION_STRING" -F p -f backups/backup-$(date +%Y-%m-%d).sql
         
       - name: Commit and Push Backup
         run: |
