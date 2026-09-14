@@ -80,7 +80,7 @@ export default function App() {
     setStipendRows(updatedRows);
   };
 
-      async function handleSubmit(e) {
+       async function handleSubmit(e) {
     e.preventDefault();
     if (!selectedStaffId || !effectiveDate) return;
 
@@ -95,8 +95,8 @@ export default function App() {
     const insertData = validRows.map(row => {
       // Find the selected stipend type object to look up its default rate
       const selectedType = stipendTypes.find(t => String(t.id) === String(row.stipendTypeId));
-      // Fallback chain: database type rate -> database type amount -> $18 default
-      const defaultRate = selectedType?.rate || selectedType?.amount || 18;
+      // Align with your exact database column: default_rate
+      const defaultRate = selectedType?.default_rate || 18;
 
       return {
         staff_id: selectedStaffId,
@@ -120,13 +120,12 @@ export default function App() {
     }
   }
 
-
-
-  function getEffectiveRate(item) {
+    function getEffectiveRate(item) {
     if (item.custom_rate !== null && item.custom_rate !== undefined && item.custom_rate !== '') {
       return parseFloat(item.custom_rate);
     }
-    return item.stipend_types?.rate || item.stipend_types?.amount || 18;
+    // Align with your exact database column: default_rate
+    return item.stipend_types?.default_rate || 18;
   }
 
   // Gate Check for Password Access Code
