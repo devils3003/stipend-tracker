@@ -80,7 +80,7 @@ export default function App() {
     setStipendRows(updatedRows);
   };
 
-       async function handleSubmit(e) {
+     async function handleSubmit(e) {
     e.preventDefault();
     if (!selectedStaffId || !effectiveDate) return;
 
@@ -93,32 +93,42 @@ export default function App() {
 
     // Format rows for bulk Supabase insertion with explicit default rates
     const insertData = validRows.map(row => {
-      // Find the selected stipend type object to look up its default rate
-      const selectedType = stipendTypes.find(t => String(t.id) === String(row.stipendTypeId));
-      // Align with your exact database column: default_rate
-      const defaultRate = selectedType?.default_rate || 18;
+      // Look up type by stripping out type constraints (.trim() and matching loosely)
+      const selectedType = stipendTypes.find(t => String(t.id).trim() === String(row.stipendTypeId).trim());
+      
+      // Fallback chain: selected database row -> fallback default number 18
+      const defaultRate = selectedType ? (selectedType.default_rate || selectedType.Rate || 18) : 18;
+
+      // Debugging tools: Open your browser inspect terminal to see these prints!
+      console.log("Selected Type Found:", selectedType);
+      console.log("Resolved Default Rate:", defaultRate);
 
       return {
         staff_id: selectedStaffId,
-        stipend_type_id: row.stipendTypeId,
+        stipend_type_id: parseInt(row.stipendTypeId) || row.stipendTypeId, // handles both numeric and string UUID ids
         quantity: parseInt(row.quantity) || 1,
-        // If customRate is blank, explicitly inject the default rate instead of sending null
-        custom_rate: row.customRate !== '' ? parseFloat(row.customRate) : defaultRate,
+        // If customRate is blank text, explicitly pass the numeric default rate
+        custom_rate: row.customRate !== '' && row.customRate !== undefined && row.customRate !== null
+          ? parseFloat(row.customRate) 
+          : parseFloat(defaultRate),
         effective_date: effectiveDate
       };
     });
 
+    console.log("Final payload passing to Supabase:", insertData);
+
     const { error } = await supabase.from('employee_stipends').insert(insertData);
 
     if (!error) {
-      // Reset form to defaults
       setStipendRows([{ stipendTypeId: '', quantity: 1, customRate: '' }]);
       setEffectiveDate('');
       fetchData();
     } else {
+      console.error("Supabase Error Context:", error);
       alert(error.message);
     }
   }
+
 
     function getEffectiveRate(item) {
     if (item.custom_rate !== null && item.custom_rate !== undefined && item.custom_rate !== '') {
