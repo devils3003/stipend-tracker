@@ -1,0 +1,33 @@
+name: Nightly Supabase Backup
+
+on:
+  schedule:
+    # Runs every night at midnight UTC
+    - cron: '0 0 * * *'
+  workflow_dispatch: # Allows you to trigger it manually
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL Client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Dump Database Schema and Data
+        run: |
+          mkdir -p backups
+          # Uses the IPv4 Session Pooler connection string securely
+          pg_dump "${{ secrets.SUPABASE_DB_URL }}" -F p -f backups/backup-$(date +%Y-%m-%d).sql
+        
+      - name: Commit and Push Backup
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add backups/
+          git commit -m "Nightly database archive: $(date +%Y-%m-%d)"
+          git push
