@@ -80,7 +80,7 @@ export default function App() {
     setStipendRows(updatedRows);
   };
 
-    async function handleSubmit(e) {
+      async function handleSubmit(e) {
     e.preventDefault();
     if (!selectedStaffId || !effectiveDate) return;
 
@@ -91,14 +91,22 @@ export default function App() {
       return;
     }
 
-    // Format rows for bulk Supabase insertion
-    const insertData = validRows.map(row => ({
-      staff_id: selectedStaffId,
-      stipend_type_id: row.stipendTypeId,
-      quantity: parseInt(row.quantity) || 1,
-      custom_rate: row.customRate ? parseFloat(row.customRate) : null,
-      effective_date: effectiveDate
-    }));
+    // Format rows for bulk Supabase insertion with explicit default rates
+    const insertData = validRows.map(row => {
+      // Find the selected stipend type object to look up its default rate
+      const selectedType = stipendTypes.find(t => String(t.id) === String(row.stipendTypeId));
+      // Fallback chain: database type rate -> database type amount -> $18 default
+      const defaultRate = selectedType?.rate || selectedType?.amount || 18;
+
+      return {
+        staff_id: selectedStaffId,
+        stipend_type_id: row.stipendTypeId,
+        quantity: parseInt(row.quantity) || 1,
+        // If customRate is blank, explicitly inject the default rate instead of sending null
+        custom_rate: row.customRate !== '' ? parseFloat(row.customRate) : defaultRate,
+        effective_date: effectiveDate
+      };
+    });
 
     const { error } = await supabase.from('employee_stipends').insert(insertData);
 
@@ -111,6 +119,7 @@ export default function App() {
       alert(error.message);
     }
   }
+
 
 
   function getEffectiveRate(item) {
