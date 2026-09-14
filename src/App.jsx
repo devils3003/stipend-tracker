@@ -248,29 +248,32 @@ export default function App() {
                   />
                 </div>
 
-                <div>
-                  <input
-                    type="number"
-                    step="0.01"
-                    placeholder="Custom Rate ($)"
-                    value={row.customRate}
-                    onChange={(e) => handleRowChange(index, 'customRate', e.target.value)}
-                    style={{ padding: '0.45rem', width: '120px' }}
-                  />
-                </div>
+               <div>
+  <input
+    type="number"
+    step="0.01"
+    // DYNAMIC PLACEHOLDER: Checks the database list on the fly to show the rate
+    placeholder={
+      row.stipendTypeId 
+        ? `Default: $${stipendTypes.find(t => String(t.id) === String(row.stipendTypeId))?.default_rate || '18'}`
+        : "Default: $18"
+    }
+    value={row.customRate}
+    onChange={(e) => handleRowChange(index, 'customRate', e.target.value)}
+    style={{ padding: '0.45rem', width: '120px' }}
+  />
+</div>
 
-                {stipendRows.length > 1 && (
-                  <button 
-                    type="button" 
-                    onClick={() => removeStipendRow(index)} 
-                    style={{ padding: '0.45rem 0.75rem', cursor: 'pointer', backgroundColor: '#dc3545', color: '#fff', border: 'none', borderRadius: '4px' }}
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
+{stipendRows.length > 1 && (
+  <button 
+    type="button" 
+    onClick={() => removeStipendRow(index)} 
+    style={{ padding: '0.45rem 0.75rem', cursor: 'pointer', backgroundColor: '#dc3545', color: '#fff', border: 'none', borderRadius: '4px' }}
+  >
+    ✕
+  </button>
+)}
+
 
           {/* Form Action Controls */}
           <div style={{ display: 'flex', gap: '1rem' }}>
