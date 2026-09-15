@@ -109,3 +109,45 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+/* Print Stylesheet */
+@media print {
+  /* Hides the Log Form AND the Filter Bar */
+  .no-print {
+    display: none !important;
+  }
+
+  /* Force background white and text dark for printing */
+  body, #root, div {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  /* Keep summary boxes outlined cleanly on paper */
+  div[style*="flex: 1"] {
+    background-color: #ffffff !important;
+    border: 1px solid #000000 !important;
+  }
+
+  div[style*="flex: 1"] h3,
+  div[style*="flex: 1"] p {
+    color: #000000 !important;
+  }
+
+  /* Format table for ink printing */
+  table {
+    border: 1px solid #000000 !important;
+    color: #000000 !important;
+    width: 100% !important;
+  }
+
+  th {
+    background-color: #f2f2f2 !important;
+    color: #000000 !important;
+    border-bottom: 2px solid #000000 !important;
+  }
+
+  td {
+    border-bottom: 1px solid #dddddd !important;
+    color: #000000 !important;
+  }
+}

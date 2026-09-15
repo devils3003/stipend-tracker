@@ -38,10 +38,10 @@ export default function App() {
     }
   }, [isAuthenticated]);
 
- async function fetchData() {
+async function fetchData() {
   setLoading(true);
 
-  // 1. Fetch all employees (used for the lower reporting table & filters)
+  // 1. Fetch all employees
   const { data: empData, error: empErr } = await supabase.from('Employee').select('*');
   const { data: typeData } = await supabase.from('stipend_types').select('*');
   const { data: stipendData } = await supabase
@@ -51,17 +51,20 @@ export default function App() {
   if (empErr) console.error('Employee Fetch Error:', empErr);
 
   if (empData) {
-    // Keep full employee list for reporting filters
-    setEmployees(empData);
-    
-    // 2. Filter employees who are BOTH Active AND Position === 'Driver'
-    const activeDrivers = empData.filter((emp) => {
-      // Check Active status
-      const isActive = emp['Active'] && String(emp['Active']).trim().toLowerCase() === 'yes';
-      
-      // Check Position (handles exact 'Driver' or trimmed values)
-      const isDriver = emp['Position'] && String(emp['Position']).trim() === 'Driver';
+    // Sort array alphabetically by 'Last Name' (A-Z)
+    const sortedEmployees = [...empData].sort((a, b) => {
+      const lastNameA = (a['Last Name'] || '').toLowerCase();
+      const lastNameB = (b['Last Name'] || '').toLowerCase();
+      return lastNameA.localeCompare(lastNameB);
+    });
 
+    // Populate all staff sorted for the lower reporting filter
+    setEmployees(sortedEmployees);
+
+    // Filter active Drivers from the sorted list
+    const activeDrivers = sortedEmployees.filter((emp) => {
+      const isActive = emp['Active'] && String(emp['Active']).trim().toLowerCase() === 'yes';
+      const isDriver = emp['Position'] && String(emp['Position']).trim() === 'Driver';
       return isActive && isDriver;
     });
 
@@ -194,9 +197,9 @@ export default function App() {
     <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
       <h1 style={{ color: '#ffffff', marginBottom: '1.5rem' }}>Employee Stipend Tracker</h1>
 
-      {/* Entry Form */}
-      <div style={{ backgroundColor: '#112240', padding: '1.5rem', borderRadius: '8px', marginBottom: '2rem', border: '1px solid #233554' }}>
-        <h2 style={{ marginTop: 0, color: '#ffffff' }}>Log Stipends for Employee</h2>
+            {/* Entry Form */}
+<div className="no-print" style={{ backgroundColor: '#112240', padding: '1.5rem', borderRadius: '8px', marginBottom: '2rem', border: '1px solid #233554' }}>
+  <h2 style={{ marginTop: 0, color: '#ffffff' }}>Log Stipends for Employee</h2>
         <form onSubmit={handleSubmit}>
           
           {/* Employee & Date Selector Row */}
@@ -329,14 +332,14 @@ export default function App() {
         </div>
       </div>
 
-      {/* Reporting Filters Layout */}
-      <div style={{ backgroundColor: '#112240', border: '1px solid #233554', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+   {/* Reporting Filters Layout */}
+      <div className="no-print" style={{ backgroundColor: '#112240', border: '1px solid #233554', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <div>
           <label style={{ fontSize: '0.8rem', display: 'block', marginBottom: '4px', color: '#8892b0' }}>Filter Staff:</label>
           <select value={reportStaffId} onChange={(e) => setReportStaffId(e.target.value)} style={{ padding: '0.4rem', backgroundColor: '#0a192f', color: '#ffffff', border: '1px solid #233554', borderRadius: '4px' }}>
             <option value="ALL">All Staff</option>
             {employees.map(emp => (
-              <option key={emp['Staff ID']} value={emp['Staff ID']}>{emp['First Name']} {emp['Last Name']}</option>
+              <option key={emp['Staff ID']} value={emp['Staff ID']}>{emp['Last Name']}, {emp['First Name']}</option>
             ))}
           </select>
         </div>
@@ -357,6 +360,24 @@ export default function App() {
           <label style={{ fontSize: '0.8rem', display: 'block', marginBottom: '4px', color: '#8892b0' }}>End Date:</label>
           <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} style={{ padding: '0.35rem', backgroundColor: '#0a192f', color: '#ffffff', border: '1px solid #233554', borderRadius: '4px' }} />
         </div>
+
+        {/* 🖨️ Print Report Button */}
+        <button
+          type="button"
+          onClick={() => window.print()}
+          style={{
+            padding: '0.45rem 1rem',
+            backgroundColor: '#2e7d32',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            fontWeight: 'bold',
+            marginLeft: 'auto'
+          }}
+        >
+          🖨️ Print Report
+        </button>
       </div>
 
       {/* Report Records Table */}
